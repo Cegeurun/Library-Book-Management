@@ -23,6 +23,33 @@
   position: relative;
 }
 
+.timezone-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.timezone-offset {
+  color: var(--ink);
+}
+
+.timezone-values {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.timezone-time {
+  font-size: 9px;
+}
+
+.timezone-date {
+  font-size: 10px;
+}
+
 .brand-name {
   color: #77717c;
   font-size: 11px;
@@ -33,60 +60,9 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  display: grid;
-  place-items: center;
   width: 44px;
   height: 44px;
-  border: 1px solid var(--purple);
-  border-radius: 50%;
-  color: var(--purple);
-  font: 11px Georgia;
-}
-
-.library-mark:before {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  border: 1px solid var(--purple);
-  border-radius: 50%;
-}
-
-.library-mark span {
-  z-index: 1;
-}
-
-.account-button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  text-align: right;
-}
-
-.account-button span {
-  display: flex;
-  flex-direction: column;
-  font-size: 13px;
-  line-height: 1.1;
-}
-
-.account-button small {
-  color: var(--muted);
-  font-size: 9px;
-  margin-top: 3px;
-}
-
-.account-button b {
-  display: grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  color: white;
-  font-size: 9px;
-  border-radius: 50%;
-  background: var(--purple);
+  object-fit: contain;
 }
 
 .workspace {
@@ -164,7 +140,6 @@
 }
 
 .heading-actions,
-.toolbar-actions,
 .detail-actions {
   display: flex;
   gap: 8px;
@@ -173,7 +148,6 @@
 
 .primary-button,
 .secondary-button,
-.select-button,
 .delete-button {
   min-height: 28px;
   padding: 0 12px;
@@ -198,9 +172,17 @@
 
 .toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 25px;
 }
 
 .search-box {
@@ -229,10 +211,64 @@
   font-size: 10px;
 }
 
-.select-button {
-  min-width: 100px;
+.filter-select {
+  height: 27px;
+  min-width: 112px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  outline: 0;
+  background: #fff;
   color: #756f79;
-  text-align: left;
+  font-size: 10px;
+}
+
+.date-range-filter {
+  position: relative;
+}
+
+.date-range-trigger {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  font-size: 18px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-range-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 320px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(42, 24, 50, .12);
+}
+
+.date-range-popup label {
+  display: grid;
+  gap: 5px;
+  color: #756f79;
+  font-size: 9px;
+}
+
+.date-range-popup input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 9px;
 }
 
 .catalog-layout {
@@ -265,15 +301,6 @@
   margin-top: 3px;
   color: var(--muted);
   font-size: 9px;
-}
-
-.count-pill,
-.selected-pill {
-  padding: 4px 7px;
-  border-radius: 10px;
-  color: #55977a;
-  background: #e7f5ef;
-  font-size: 8px;
 }
 
 .table-scroll {
@@ -363,6 +390,22 @@
   font-size: 8px;
 }
 
+.issue-book-button {
+  color: #514a59;
+  background: white;
+  border-color: var(--line);
+}
+
+.issue-book-button.unavailable {
+  color: #aaa3ad;
+  background: #f5f3f5;
+  border-color: #e8e4e9;
+}
+
+.issue-book-button:disabled {
+  cursor: not-allowed;
+}
+
 .panel-footer {
   display: flex;
   justify-content: space-between;
@@ -390,6 +433,11 @@
   background: transparent;
   color: var(--purple);
   font-size: 8px;
+}
+
+.panel-footer button:disabled {
+  color: #c8c3ca;
+  cursor: not-allowed;
 }
 
 .book-preview {
@@ -489,17 +537,20 @@
 
 .issued-search {
   width: 326px;
-  margin-bottom: 25px;
 }
 
 .issued-table .table-row {
-  grid-template-columns: 2fr 1.3fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1.3fr 1fr 1fr 1fr 1fr 1fr;
   min-width: 850px;
   min-height: 65px;
 }
 
 .issued-table .table-header {
   min-height: 42px;
+}
+
+.returned-table .table-row {
+  grid-template-columns: 2fr 1.3fr 1fr 1fr 1fr 1fr;
 }
 
 .issued-row {
@@ -535,8 +586,48 @@
   font-size: 11px;
 }
 
-.modal input {
+.modal input,
+.modal select,
+.modal textarea {
   margin-bottom: 9px;
+}
+
+.edit-modal label {
+  display: block;
+  color: #7f7784;
+  font-size: 8px;
+}
+
+.required-mark {
+  color: #c6535b;
+}
+
+.edit-modal textarea {
+  display: block;
+  width: 100%;
+  height: 68px;
+  margin-top: 4px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  outline: 0;
+  color: #68616d;
+  background: #fff;
+  font-size: 9px;
+  resize: vertical;
+}
+
+.edit-modal select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  outline: 0;
+  color: #68616d;
+  background: #fff;
+  font-size: 9px;
 }
 
 .modal > div {
@@ -559,10 +650,6 @@
 
   .brand-name {
     font-size: 8px;
-  }
-
-  .account-button span {
-    display: none;
   }
 
   .workspace {
@@ -610,13 +697,23 @@
     display: block;
   }
 
-  .toolbar-actions {
-    margin-top: 9px;
+  .filter-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .search-box,
   .issued-search {
     width: 100%;
+  }
+
+  .filter-bar .issued-search {
+    grid-column: 1 / -1;
+  }
+
+  .date-range-popup {
+    right: auto;
+    left: 0;
   }
 
   .catalog-layout {
