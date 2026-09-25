@@ -356,6 +356,50 @@ const allStatuses = [
 ];
 
 const pageSize = 10;
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json", ...options.headers },
+    ...options,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "The server request failed.");
+  }
+  return response.status === 204 ? null : response.json();
+}
+
+function normalizeBook(book) {
+  return { ...book, yearPublished: book.year_published ?? "" };
+}
+
+function normalizeLoan(loan) {
+  return {
+    ...loan,
+    studentId: loan.student_id,
+    issuedOn: DateTime.fromISO(loan.issued_on).toFormat("dd LLL yyyy"),
+    dueDate: loan.due_date
+      ? DateTime.fromISO(loan.due_date).toFormat("dd LLL yyyy")
+      : undefined,
+    returnedOn: loan.returned_on
+      ? DateTime.fromISO(loan.returned_on).toFormat("dd LLL yyyy")
+      : undefined,
+  };
+}
+
+async function loadLibraryData() {
+  const [bookData, issuedData, returnedData] = await Promise.all([
+    apiRequest("/books"),
+    apiRequest("/loans/issued"),
+    apiRequest("/loans/returned"),
+  ]);
+  return {
+    books: bookData.map(normalizeBook),
+    issuedBooks: issuedData.map(normalizeLoan),
+    returnedBooks: returnedData.map(normalizeLoan),
+  };
+}
 
 function App() {
   const [activePage, setActivePage] = useState("manage");
@@ -375,6 +419,19 @@ function App() {
   });
   const [editBook, setEditBook] = useState(null);
   const [catalogPage, setCatalogPage] = useState(1);
+  const [issuedRecords, setIssuedRecords] = useState(issuedBooks);
+  const [returnedRecords, setReturnedRecords] = useState(returnedBooks);
+
+  useEffect(() => {
+    loadLibraryData()
+      .then(({ books: loadedBooks, issuedBooks: loadedIssued, returnedBooks: loadedReturned }) => {
+        setBooks(loadedBooks);
+        setIssuedRecords(loadedIssued);
+        setReturnedRecords(loadedReturned);
+        if (loadedBooks.length > 0) setSelectedBookId(loadedBooks[0].id);
+      })
+      .catch((error) => console.error("Unable to load library data:", error));
+  }, []);
 
   const selectedBook =
     books.find((book) => book.id === selectedBookId) || books[0];
@@ -393,46 +450,66 @@ function App() {
   // Button handlers are intentionally small placeholders for future API calls.
   const handleCreateBook = () => setShowBookForm(true);
   const handleCloseForm = () => setShowBookForm(false);
-  const handleSaveNewBook = (event) => {
+  const handleSaveNewBook = async (event) => {
     event.preventDefault();
-    window.alert("TODO: Implement the Add Book function properly.");
-    const book = {
-      ...newBook,
-      id: Math.max(...books.map((currentBook) => currentBook.id), 0) + 1,
-      status: "Available",
-      yearPublished: Number(newBook.yearPublished),
-    };
-    setBooks((currentBooks) => [...currentBooks, book]);
-    setSelectedBookId(book.id);
-    setShowBookForm(false);
-    setNewBook({
-      title: "",
-      author: "",
-      isbn: "",
-      publisher: "",
-      category: "",
-      yearPublished: "",
-      description: "",
-    });
+    try {
+      const book = normalizeBook(await apiRequest("/books", {
+        method: "POST",
+        body: JSON.stringify({ ...newBook, year_published: newBook.yearPublished || null }),
+      }));
+      setBooks((currentBooks) => [...currentBooks, book]);
+      setSelectedBookId(book.id);
+      setShowBookForm(false);
+      setNewBook({ title: "", author: "", isbn: "", publisher: "", category: "", yearPublished: "", description: "" });
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
-  const handleEditBook = () => setEditBook({ ...selectedBook });
+  const handleEditBook = () => {
+    if (selectedBook) setEditBook({ ...selectedBook });
+  };
   const handleCloseEditForm = () => setEditBook(null);
-  const handleSaveBook = (event) => {
+  const handleSaveBook = async (event) => {
     event.preventDefault();
-    window.alert("TODO: Implement the Save Changes function properly.");
-    setBooks((currentBooks) =>
-      currentBooks.map((book) => (book.id === editBook.id ? editBook : book)),
-    );
-    handleCloseEditForm();
+    try {
+      const savedBook = normalizeBook(await apiRequest(`/books/${editBook.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...editBook, year_published: editBook.yearPublished || null }),
+      }));
+      setBooks((currentBooks) => currentBooks.map((book) => (book.id === savedBook.id ? savedBook : book)));
+      handleCloseEditForm();
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
-  const handleIssueBook = (book) => {
-    window.alert(`Issue ${book.title} here.`);
+  const handleIssueBook = async (book) => {
+    const studentId = window.prompt("Student ID");
+    const dueDate = window.prompt("Due date (YYYY-MM-DD)");
+    if (!studentId || !dueDate) return;
+    try {
+      const data = await apiRequest("/loans", {
+        method: "POST",
+              body: JSON.stringify({ book_id: book.id, student_id: studentId, member_name: studentId, due_date: dueDate }),
+      });
+      const refreshed = await loadLibraryData();
+      setBooks(refreshed.books);
+      setIssuedRecords(refreshed.issuedBooks);
+      setReturnedRecords(refreshed.returnedBooks);
+      setSelectedBookId(data.book_id);
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
-  const handleDeleteBook = () => {
-    window.alert(`Delete ${selectedBook.title} here.`);
-    setBooks((currentBooks) =>
-      currentBooks.filter((book) => book.id !== selectedBook.id),
-    );
+  const handleDeleteBook = async () => {
+    if (!selectedBook) return;
+    try {
+      await apiRequest(`/books/${selectedBook.id}`, { method: "DELETE" });
+      const remainingBooks = books.filter((book) => book.id !== selectedBook.id);
+      setBooks(remainingBooks);
+      setSelectedBookId(remainingBooks[0]?.id || null);
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
   const handleReturnedBookDetails = (title) => {
     setCatalogPage(1);
@@ -538,9 +615,8 @@ function App() {
                       <span></span>
                     </div>
                     {visibleBooks.map((book) => (
-                      <button
+                      <div
                         className={`table-row book-row ${selectedBookId === book.id ? "selected" : ""}`}
-                        type="button"
                         key={book.id}
                         onClick={() => setSelectedBookId(book.id)}
                       >
@@ -570,7 +646,7 @@ function App() {
                             Issue book
                           </button>
                         </span>
-                      </button>
+                      </div>
                     ))}
                   </div>
                   <Pagination
@@ -591,12 +667,20 @@ function App() {
             <IssuedBooks
               searchText={searchText}
               setSearchText={setSearchText}
+              records={issuedRecords}
+              onReturned={async () => {
+                const refreshed = await loadLibraryData();
+                setBooks(refreshed.books);
+                setIssuedRecords(refreshed.issuedBooks);
+                setReturnedRecords(refreshed.returnedBooks);
+              }}
             />
           ) : (
             <ReturnedBooks
               searchText={searchText}
               setSearchText={setSearchText}
               onViewDetails={handleReturnedBookDetails}
+              records={returnedRecords}
             />
           )}
         </main>
@@ -809,6 +893,19 @@ function TimeZoneDisplay() {
 
 // Selected record details and future CRUD actions.
 function BookDetails({ book, onEdit, onDelete }) {
+  if (!book) {
+    return (
+      <aside className="details-panel panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Record details</h2>
+            <p>No books have been added yet.</p>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="details-panel panel">
       <div className="panel-heading">
@@ -909,14 +1006,19 @@ function DateRangeFilter({ dateRange, onChange, label }) {
 }
 
 // Issued book records mirror the second reference screen.
-function IssuedBooks({ searchText, setSearchText }) {
+function IssuedBooks({ searchText, setSearchText, records, onReturned }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
-  const handleMarkAsReturned = (book) => {
-    window.alert(`TODO: Add the return workflow for ${book.title}. Make sure na nakadisable ung button after nya mareturn successfully thx.`);
+  const handleMarkAsReturned = async (book) => {
+    try {
+      await apiRequest(`/loans/${book.id}/return`, { method: "POST" });
+      await onReturned();
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
-  const filteredIssuedBooks = issuedBooks.filter((book) =>
+  const filteredIssuedBooks = records.filter((book) =>
     `${book.title} ${book.member} ${book.studentId}`
       .toLowerCase()
       .includes(searchText.toLowerCase()) &&
@@ -1022,11 +1124,11 @@ function IssuedBooks({ searchText, setSearchText }) {
 }
 
 // Returned book records use the issued-book layout with return-specific fields.
-function ReturnedBooks({ searchText, setSearchText, onViewDetails }) {
+function ReturnedBooks({ searchText, setSearchText, onViewDetails, records }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
-  const filteredReturnedBooks = returnedBooks.filter((book) =>
+  const filteredReturnedBooks = records.filter((book) =>
     `${book.title} ${book.member} ${book.studentId}`
       .toLowerCase()
       .includes(searchText.toLowerCase()) &&

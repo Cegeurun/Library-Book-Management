@@ -1,6 +1,6 @@
 # Library Book Management
 
-Library Book Management is a web application for organizing library records and tracking book activity. The project is being developed with a React and Vite frontend, with a Python Flask backend and MySQL database planned for the application services and persistent data layer.
+Library Book Management is a web application for organizing library records and tracking book activity. It uses a React and Vite frontend, a functional Python FastAPI backend, and PostgreSQL for persistent data.
 
 ## Current Features
 
@@ -24,20 +24,23 @@ Library Book Management is a web application for organizing library records and 
 - Luxon
 - CSS
 
-### Planned Backend
+### Backend
 
 - Python
-- Flask
-- MySQL
+- FastAPI
+- psycopg
+- PostgreSQL
 
-The frontend currently uses sample records while the backend is being prepared. Flask will provide the API for book, issue, return, member, and catalog operations. MySQL will store the application data and support reliable record management.
+FastAPI provides API endpoints for book, issue, return, member, and catalog operations. The backend uses the functional modules under `models/` for database access and `controllers/` for HTTP request handling.
 
 ## Project Structure
 
 ```text
 Library-Book-Management/
-├── controllers/       # Planned backend request and application controllers
-├── models/            # Planned database models and data access logic
+├── controllers/       # Functional HTTP request controllers
+├── models/            # PostgreSQL connection and data access functions
+├── main.py             # FastAPI application entry point
+├── requirements.txt    # Backend dependencies
 ├── frontend/          # React and Vite application
 └── README.md
 ```
@@ -73,15 +76,28 @@ npm run lint      # Run ESLint
 npm run preview   # Preview the production build
 ```
 
-## Planned Backend Work
+## Running the Backend
 
-- Create the Flask application and API routes
-- Connect Flask to MySQL
-- Replace sample frontend records with API data
-- Add database-backed book, member, issue, and return operations
-- Add validation and error handling for API requests
-- Configure environment variables for database credentials and application settings
+1. Install backend dependencies:
+
+	```bash
+	pip install -r requirements.txt
+	```
+
+2. Apply `schema.sql` to the `pg_default` database:
+
+	```bash
+	psql -U postgres -d pg_default -f schema.sql
+	```
+
+3. Start FastAPI from the project root:
+
+	```bash
+	uvicorn main:app --reload
+	```
+
+The default database URL is `postgresql://postgres@localhost:5432/pg_default`. Set `DATABASE_URL` to override it. The frontend uses `http://localhost:8000/api` by default; set `VITE_API_URL` when the API runs elsewhere.
 
 ## Project Status
 
-The frontend interface and sample data workflows are in place. Backend integration, database schema design, authentication, and production deployment remain planned work.
+The frontend interface is connected to the database-backed catalog and loan workflows. Authentication and production deployment remain outside the current scope.
