@@ -3,16 +3,20 @@ from typing import Any
 from psycopg.rows import dict_row
 
 from .database import with_connection
-
-
-BOOK_FIELDS = "id, title, author, isbn, publisher, category, year_published, status, description"
+from .book_functions import (
+    BOOK_FIELDS,
+    records,
+    storage_status,
+    values_with_id,
+    view_query,
+)
 
 
 def list_books() -> list[dict[str, Any]]:
     def query(conn: Any) -> list[dict[str, Any]]:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(f"SELECT {BOOK_FIELDS} FROM library.book_catalog ORDER BY id")
-            return [dict(row) for row in cursor.fetchall()]
+            return records(cursor.fetchall())
 
     return with_connection(query)
 
@@ -45,15 +49,17 @@ def update_book(book_id: int, book: dict[str, Any]) -> dict[str, Any] | None:
                 SET title = %(title)s, author = %(author)s, isbn = %(isbn)s,
                     publisher = %(publisher)s, category = %(category)s,
                     year_published = %(year_published)s,
-                    status = CASE WHEN %(status)s = 'On loan' THEN 'on_loan'::library.book_status
-                                  ELSE 'available'::library.book_status END,
+                    status = %(status)s::library.book_status,
                     description = %(description)s
                 WHERE id = %(id)s
                 RETURNING id, title, author, isbn, publisher, category, year_published,
                           CASE status WHEN 'available' THEN 'Available' ELSE 'On loan' END AS status,
                           description
                 """,
-                {**book, "id": book_id},
+                values_with_id(
+                    book_id,
+                    {**book, "status": storage_status(book.get("status"))},
+                ),
             )
             return cursor.fetchone()
 
@@ -70,15 +76,11 @@ def delete_book(book_id: int) -> bool:
 
 
 def list_issued_books() -> list[dict[str, Any]]:
-    return with_connection(
-        lambda conn: _fetch_view(conn, "issued_books", "issued_on DESC, id DESC")
-    )
+    return with_connection(lambda conn: _fetch_view(conn, "issued_books"))
 
 
 def list_returned_books() -> list[dict[str, Any]]:
-    return with_connection(
-        lambda conn: _fetch_view(conn, "returned_books", "returned_on DESC, id DESC")
-    )
+    return with_connection(lambda conn: _fetch_view(conn, "returned_books"))
 
 
 def issue_book(loan: dict[str, Any]) -> dict[str, Any]:
@@ -120,8 +122,8 @@ def return_book(loan_id: int) -> dict[str, Any] | None:
     return with_connection(query)
 
 
-def _fetch_view(conn: Any, view: str, ordering: str) -> list[dict[str, Any]]:
+def _fetch_view(conn: Any, view: str) -> list[dict[str, Any]]:
     with conn.cursor(row_factory=dict_row) as cursor:
-        cursor.execute(f"SELECT * FROM library.{view} ORDER BY {ordering}")
-        return [dict(row) for row in cursor.fetchall()]
+        cursor.execute(view_query(view))
+        return records(cursor.fetchall())
 from psycopg.rows import dict_row

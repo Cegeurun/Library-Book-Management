@@ -14,6 +14,7 @@ from models.book_model import (
     return_book,
     update_book,
 )
+from models.book_functions import copy_values
 
 
 router = APIRouter(prefix="/api")
@@ -38,7 +39,7 @@ class LoanInput(BaseModel):
 
 
 def book_values(book: BookInput) -> dict[str, Any]:
-    return book.model_dump()
+    return copy_values(book.model_dump())
 
 
 @router.get("/books")
@@ -78,7 +79,7 @@ def get_returned_books() -> list[dict[str, Any]]:
 
 @router.post("/loans", status_code=201)
 def post_loan(loan: LoanInput) -> dict[str, Any]:
-    return issue_book(loan.model_dump())
+    return issue_book(copy_values(loan.model_dump()))
 
 
 @router.post("/loans/{loan_id}/return")

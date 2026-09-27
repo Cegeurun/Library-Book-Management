@@ -93,6 +93,7 @@ npm run preview   # Preview the production build
 3. Start FastAPI from the project root:
 
 	```bash
+	source .venv/bin/activate
 	uvicorn main:app --reload
 	```
 

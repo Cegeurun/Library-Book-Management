@@ -1,9 +1,12 @@
 import os
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, TypeVar
 
 import psycopg
+
+
+Result = TypeVar("Result")
 
 
 def database_url() -> str:
@@ -19,6 +22,6 @@ def connection() -> Iterator[psycopg.Connection[Any]]:
         yield conn
 
 
-def with_connection(operation: Callable[[psycopg.Connection[Any]], Any]) -> Any:
+def with_connection(operation: Callable[[psycopg.Connection[Any]], Result]) -> Result:
     with connection() as conn:
         return operation(conn)
